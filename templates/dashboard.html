@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ipID — asset identification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#161616; --bg-2:#0a0a0a; --panel:#1c1c1c; --panel-2:#242424;
+  --line:#353535; --line-2:#474747;
+  --text:#f4f4f4; --muted:#a0a0a0; --muted-2:#6a6a6a;
+  --scan:#2ee6d6; --scan-soft:rgba(46,230,214,.16); --scan-dim:#14504c;
+  --blue:#3b82f6; --purple:#a855f7; --amber:#f59e0b; --green:#22c55e;
+  --red:#ef4444; --cyan:#38bdf8; --pink:#ec4899; --teal:#14b8a6; --gray:#64748b;
+  --radius:14px;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:radial-gradient(1200px 600px at 15% -10%,#212121 0,transparent 55%),
+  radial-gradient(900px 500px at 100% 0%,#1b1b1b 0,transparent 50%),var(--bg);
+  color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased;min-height:100vh;padding:22px}
+.wrap{max-width:1280px;margin:0 auto}
+
+.top{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:9px}
+.logo{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:-.5px}
+.logo b{color:var(--scan)}
+.fp{width:23px;height:23px;color:var(--scan);filter:drop-shadow(0 0 6px rgba(46,230,214,.5))}
+.tag{font-family:var(--mono);font-size:11px;color:var(--muted-2);letter-spacing:1px;text-transform:uppercase}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.dot-live{width:7px;height:7px;border-radius:50%;background:var(--muted-2)}
+.dot-live.on{background:var(--scan);box-shadow:0 0 10px var(--scan)}
+.stat-mini{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+.controls{display:grid;grid-template-columns:1fr auto auto;gap:12px;
+  background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px;margin-bottom:16px}
+.chooser{display:flex;align-items:center;gap:12px;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;min-height:56px}
+.chooser .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none;
+  background:var(--scan-soft);border:1px solid var(--scan-dim);color:var(--scan)}
+.chooser .lab{font-family:var(--mono);font-size:10px;color:var(--muted-2);letter-spacing:1px;text-transform:uppercase}
+.chooser .val{font-size:13px;color:var(--text);font-weight:500;margin-top:2px}
+.chooser input[type=file]{display:none}
+.chooser .pick{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text);
+  background:var(--panel-2);border:1px solid var(--line-2);border-radius:7px;padding:7px 11px;cursor:pointer;transition:.15s}
+.chooser .pick:hover{border-color:var(--scan);color:var(--scan)}
+select.profile{background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);border-radius:10px;
+  padding:0 12px;font-family:var(--mono);font-size:12px;cursor:pointer}
+.scan-btn{display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--display);
+  font-weight:600;font-size:15px;background:linear-gradient(180deg,#2ee6d6,#17b7a8);color:#04211f;
+  border:none;border-radius:10px;padding:0 24px;cursor:pointer;transition:.15s;box-shadow:0 6px 20px -8px var(--scan)}
+.scan-btn:hover{filter:brightness(1.07)}
+.scan-btn:disabled{opacity:.5;cursor:default;filter:none;box-shadow:none}
+.scan-btn.stop{background:linear-gradient(180deg,#ef4444,#b91c1c);color:#fff;box-shadow:0 6px 20px -8px #ef4444}
+.rdns-toggle{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.rdns-toggle input{accent-color:var(--scan)}
+
+.sources{display:flex;align-items:center;gap:10px;margin-bottom:16px;font-family:var(--mono)}
+.sources .src-lab{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2)}
+.src-btn{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--text);
+  background:var(--panel);border:1px solid var(--line-2);border-radius:9px;padding:8px 13px;cursor:pointer;transition:.15s}
+.src-btn:hover{border-color:var(--scan);color:var(--scan)}
+.src-btn.loaded{border-color:var(--scan-dim)}
+.src-btn .cnt2{font-size:10px;background:var(--scan-soft);color:var(--scan);border-radius:20px;padding:1px 7px}
+.covbadge{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:20px}
+.covbadge.yes{background:rgba(34,197,94,.12);color:#4ade80}
+.covbadge.no{background:rgba(100,116,139,.14);color:var(--muted-2)}
+.covbadge.warn{background:rgba(239,68,68,.14);color:#f87171}
+.covbadge.na{background:rgba(100,116,139,.08);color:var(--muted-2);opacity:.7}
+.tab.cov .cnt{background:rgba(239,68,68,.16);color:#f87171}
+.export-btn{margin-left:auto;align-self:center;font-family:var(--mono);font-size:12px;color:var(--muted);
+  text-decoration:none;background:var(--panel);border:1px solid var(--line-2);border-radius:9px;padding:8px 13px;transition:.15s}
+.export-btn:hover{border-color:var(--scan);color:var(--scan)}
+
+.stage{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}
+.stage.hidden{display:none}
+.panel{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);border-radius:var(--radius)}
+.panel-h{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.panel-h .t{font-family:var(--display);font-weight:600;font-size:13px}
+.panel-h .badge{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line-2);border-radius:20px;padding:3px 9px}
+
+.radar-body{position:relative;height:320px;display:grid;place-items:center;overflow:hidden}
+.radar{position:relative;width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,rgba(46,230,214,.05) 0,rgba(26,26,26,.5) 45%,rgba(10,10,10,.7) 100%);
+  box-shadow:inset 0 0 60px rgba(0,0,0,.55),inset 0 0 0 1px rgba(46,230,214,.10)}
+.ring{position:absolute;inset:0;border:1px solid var(--line-2);border-radius:50%;opacity:.45}
+.ring.r2{inset:38px}.ring.r3{inset:76px}.ring.r4{inset:114px}
+.sweep{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0deg 265deg,rgba(46,230,214,.05) 280deg,
+    rgba(46,230,214,.14) 308deg,rgba(46,230,214,.28) 334deg,rgba(46,230,214,.46) 352deg,
+    rgba(46,230,214,.60) 359.3deg,rgba(46,230,214,0) 360deg);animation:spin 4.2s linear infinite;display:none}
+.sweep::after{content:"";position:absolute;left:50%;top:0;bottom:50%;width:2px;transform:translateX(-50%);
+  background:linear-gradient(to top,rgba(46,230,214,.15),rgba(180,255,250,1));box-shadow:0 0 12px rgba(46,230,214,.85)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.node{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--muted-2);transform:translate(-50%,-50%);opacity:.3;transition:.4s}
+.node.lit{opacity:1;background:var(--scan);box-shadow:0 0 8px 1px rgba(46,230,214,.55)}
+.radar-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+.radar-center .n{font-family:var(--mono);font-weight:700;font-size:28px;text-shadow:0 0 18px rgba(46,230,214,.35)}
+.radar-center .l{font-family:var(--mono);font-size:9px;color:var(--muted-2);letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.idle-hint{font-family:var(--mono);font-size:12px;color:var(--muted-2)}
+.prog-wrap{padding:0 16px 15px}
+.prog-row{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:7px}
+.prog{height:5px;background:var(--bg-2);border-radius:20px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--scan-dim),var(--scan));border-radius:20px;transition:width .3s}
+.log-body{height:320px;overflow:hidden;padding:8px 0;
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(180deg,transparent,#000 8%,#000 92%,transparent)}
+.log-line{display:flex;align-items:center;gap:10px;padding:5px 16px;font-family:var(--mono);font-size:12px;animation:sl .3s ease}
+@keyframes sl{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.log-line .ip{color:var(--muted);width:104px;flex:none}.log-line .arrow{color:var(--muted-2)}
+.log-line .nm{color:var(--muted);margin-left:auto;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.log-empty{display:grid;place-items:center;height:100%;color:var(--muted-2);font-family:var(--mono);font-size:12px}
+
+/* diff banner */
+.diff{display:flex;gap:18px;align-items:center;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px 18px;margin-bottom:16px;font-family:var(--mono);font-size:12px}
+.diff .lab{color:var(--muted-2);text-transform:uppercase;letter-spacing:1px;font-size:10px}
+.diff .chip{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.diff .chip b{font-size:15px}
+.diff .chip.new b{color:var(--green)} .diff .chip.miss b{color:var(--red)} .diff .chip.chg b{color:var(--amber)}
+.diff .grow{margin-left:auto;color:var(--muted-2)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin-bottom:14px}
+.tab{font-family:var(--display);font-weight:600;font-size:13px;color:var(--muted);background:transparent;
+  border:1px solid transparent;border-radius:9px;padding:9px 16px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:8px}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);background:var(--panel);border-color:var(--line)}
+.tab .cnt{font-family:var(--mono);font-size:11px;background:var(--scan-soft);color:var(--scan);border-radius:20px;padding:1px 8px}
+.tab.review .cnt{background:rgba(245,158,11,.16);color:var(--amber)}
+
+/* summary cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px;margin-bottom:16px}
+.scard{position:relative;background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--line);
+  border-radius:12px;padding:13px 14px;cursor:pointer;transition:.15s;overflow:hidden}
+.scard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--cc)}
+.scard:hover{border-color:var(--cc);transform:translateY(-2px)}
+.scard.sel{border-color:var(--cc);box-shadow:0 0 0 1px var(--cc) inset}
+.scard .cn{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scard .cc{font-family:var(--mono);font-weight:700;font-size:26px}
+
+/* controls row */
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.search{flex:1;min-width:220px;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);border-radius:9px;padding:9px 12px}
+.search input{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--body);font-size:13px;width:100%}
+.search svg{color:var(--muted-2);flex:none}
+.filters select{background:var(--panel);border:1px solid var(--line-2);color:var(--text);border-radius:9px;padding:9px 11px;font-family:var(--mono);font-size:12px;cursor:pointer}
+
+/* table */
+.twrap{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted-2);padding:12px 16px;border-bottom:1px solid var(--line);font-weight:500;background:var(--bg-2)}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:.1s}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(46,230,214,.04)}
+.td-ip{font-family:var(--mono);color:var(--scan);white-space:nowrap}
+.td-name{font-weight:500}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--cc)}
+.pill{background:color-mix(in srgb,var(--cc) 14%,transparent);color:var(--cc);border:1px solid color-mix(in srgb,var(--cc) 32%,transparent)}
+.ovr{font-family:var(--mono);font-size:9px;color:var(--amber);border:1px solid rgba(245,158,11,.4);border-radius:4px;padding:1px 4px;margin-left:6px}
+.conf{font-family:var(--mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:3px 9px;border-radius:20px}
+.conf.high{background:rgba(34,197,94,.12);color:#4ade80}.conf.medium{background:rgba(245,158,11,.12);color:#fbbf24}
+.conf.low{background:rgba(100,116,139,.14);color:#94a3b8}.conf.none{background:rgba(100,116,139,.1);color:var(--muted-2)}
+.st-missing{color:var(--red);font-family:var(--mono);font-size:11px}
+.st-present{color:var(--muted-2);font-family:var(--mono);font-size:11px}
+.empty{padding:50px;text-align:center;color:var(--muted-2);font-family:var(--mono);font-size:13px}
+
+/* review list */
+.rev-item{display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.1s}
+.rev-item:hover{background:rgba(245,158,11,.05)}
+.rev-item:last-child{border-bottom:none}
+.rev-item .rip{font-family:var(--mono);color:var(--scan);width:120px;flex:none}
+.rev-item .rev{font-family:var(--mono);font-size:12px;color:var(--muted);flex:1}
+.rev-item .go{font-family:var(--mono);font-size:11px;color:var(--amber)}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(3,6,10,.6);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:.2s;z-index:40}
+.scrim.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,92vw);background:var(--bg-2);border-left:1px solid var(--line-2);
+  transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto;padding:22px}
+.drawer.open{transform:none}
+.dh{display:flex;align-items:flex-start;gap:12px;margin-bottom:6px}
+.dh .dip{font-family:var(--mono);font-size:13px;color:var(--scan)}
+.dh .dname{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.15}
+.dh .x{margin-left:auto;background:var(--panel);border:1px solid var(--line-2);color:var(--muted);border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;flex:none}
+.dh .x:hover{color:var(--text)}
+.dsub{font-family:var(--mono);font-size:11px;color:var(--muted-2);margin-bottom:18px}
+.sec-t{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted-2);margin:20px 0 10px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;font-size:12.5px}
+.kv .k{color:var(--muted-2);font-family:var(--mono);font-size:11px}
+.kv .v{color:var(--text);word-break:break-word}
+.kv .v.mono{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.evlist{display:flex;flex-direction:column;gap:7px}
+.ev{display:flex;gap:10px;font-family:var(--mono);font-size:11px;align-items:baseline}
+.ev .ety{padding:1px 7px;border-radius:5px;font-size:9px;letter-spacing:.5px;text-transform:uppercase;flex:none}
+.ev .ety.new{background:rgba(34,197,94,.14);color:#4ade80}
+.ev .ety.ip_changed{background:rgba(56,189,248,.14);color:var(--cyan)}
+.ev .ety.category_changed{background:rgba(168,85,247,.14);color:var(--purple)}
+.ev .ety.ports_changed{background:rgba(245,158,11,.14);color:var(--amber)}
+.ev .ety.missing{background:rgba(239,68,68,.14);color:var(--red)}
+.ev .ety.returned{background:rgba(46,230,214,.14);color:var(--scan)}
+.ev .ety.reviewed{background:rgba(245,158,11,.14);color:var(--amber)}
+.ev .ed{color:var(--muted)}
+.ev .et{color:var(--muted-2);margin-left:auto;flex:none}
+.form{background:var(--panel);border:1px solid var(--line-2);border-radius:12px;padding:16px;margin-top:8px}
+.form label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);margin:0 0 6px}
+.form select,.form input,.form textarea{width:100%;background:var(--bg-2);border:1px solid var(--line-2);color:var(--text);
+  border-radius:8px;padding:9px 11px;font-family:var(--body);font-size:13px;margin-bottom:13px;outline:none}
+.form select:focus,.form input:focus,.form textarea:focus{border-color:var(--scan)}
+.form textarea{resize:vertical;min-height:56px;font-size:12.5px}
+.form .save{width:100%;background:linear-gradient(180deg,#2ee6d6,#17b7a8);color:#04211f;border:none;border-radius:9px;
+  padding:11px;font-family:var(--display);font-weight:600;font-size:14px;cursor:pointer}
+.form .save:hover{filter:brightness(1.07)}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel);
+  border:1px solid var(--scan-dim);color:var(--scan);font-family:var(--mono);font-size:12px;padding:11px 18px;border-radius:10px;
+  opacity:0;transition:.25s;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%)}
+@media(max-width:900px){.stage{grid-template-columns:1fr}.controls{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand"><span class="logo">ip<b>ID</b></span>
+      <svg class="fp" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .13-5.35 0-6"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/></svg>
+      <span class="tag">asset identification</span></div>
+    <div class="top-right"><span class="dot-live" id="live"></span><span class="stat-mini" id="clock">ready</span></div>
+  </div>
+
+  <div class="controls">
+    <div class="chooser">
+      <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6l2 2h8v12H4z"/></svg></div>
+      <div><div class="lab">Source file</div><div class="val" id="fileName">no file — paste or choose</div></div>
+      <input type="file" id="fileInput" accept=".csv,.xlsx,.tsv,.txt">
+      <button class="pick" onclick="document.getElementById('fileInput').click()">Choose…</button>
+    </div>
+    <select class="profile" id="profile"><option value="quick">quick</option><option value="standard" selected>standard</option><option value="full">full</option></select>
+    <label class="rdns-toggle" title="Reverse DNS is the usual cause of corporate-network hangs. Off by default."><input type="checkbox" id="rdns"> reverse DNS</label>
+    <button class="scan-btn" id="scanBtn" onclick="startScan()"><span id="scanLabel">Start scan</span></button>
+    <button class="scan-btn stop" id="stopBtn" onclick="stopScan()" style="display:none">Stop</button>
+  </div>
+
+  <div class="sources">
+    <span class="src-lab">Reconcile against</span>
+    <button class="src-btn" id="btnQualys" onclick="importSrc('qualys')">＋ Qualys asset export<span class="cnt2" id="qCount" style="display:none"></span></button>
+    <button class="src-btn" id="btnDefender" onclick="importSrc('defender')">＋ Defender device export<span class="cnt2" id="dCount" style="display:none"></span></button>
+    <input type="file" id="impFile" accept=".csv,.xlsx,.tsv" style="display:none">
+  </div>
+
+  <div class="stage hidden" id="stage">
+    <div class="panel">
+      <div class="panel-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--scan)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 3"/></svg><span class="t">Network sweep</span><span class="badge" id="sweepBadge">idle</span></div>
+      <div class="radar-body"><div class="radar" id="radar">
+        <div class="ring"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+        <div class="sweep" id="sweep"></div>
+        <div class="radar-center" id="radarCenter"><div class="n" id="liveCount">0</div><div class="l">identified</div></div>
+      </div></div>
+      <div class="prog-wrap"><div class="prog-row"><span id="progText">0 / 0</span><span id="progPct">0%</span></div><div class="prog"><i id="progBar"></i></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--scan)" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span class="t">Live identification log</span><span class="badge" id="logBadge">—</span></div>
+      <div class="log-body" id="log"><div class="log-empty">awaiting scan…</div></div>
+    </div>
+  </div>
+
+  <div class="diff" id="diff" style="display:none">
+    <span class="lab">Since last scan</span>
+    <span class="chip new"><b id="dNew">0</b> new</span>
+    <span class="chip miss"><b id="dMiss">0</b> missing</span>
+    <span class="chip chg"><b id="dChg">0</b> changed</span>
+    <span class="grow" id="dWhen"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabInv" onclick="showTab('inv')">Inventory <span class="cnt" id="invCnt">0</span></button>
+    <button class="tab review" id="tabRev" onclick="showTab('rev')">Review queue <span class="cnt" id="revCnt">0</span></button>
+    <button class="tab cov" id="tabCov" onclick="showTab('cov')">Coverage gaps <span class="cnt" id="covCnt">0</span></button>
+    <a class="export-btn" href="/api/report" download title="Download a self-contained HTML report">⬇ Export report</a>
+  </div>
+
+  <!-- INVENTORY -->
+  <div id="viewInv">
+    <div class="cards" id="cards"></div>
+    <div class="filters">
+      <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input id="search" placeholder="Search name, IP, ports, evidence, SNMP…" oninput="debouncedLoad()"></div>
+      <select id="fCategory" onchange="loadInventory()"><option value="">All categories</option></select>
+      <select id="fConfidence" onchange="loadInventory()"><option value="">Any confidence</option><option value="high">high</option><option value="medium">medium</option><option value="low">low</option></select>
+      <select id="fStatus" onchange="loadInventory()"><option value="">Present + missing</option><option value="present">Present</option><option value="missing">Missing</option></select>
+      <select id="fSort" onchange="loadInventory()"><option value="name">Sort: name</option><option value="ip">Sort: IP</option><option value="category">Sort: category</option><option value="confidence">Sort: confidence</option><option value="last_seen">Sort: last seen</option><option value="first_seen">Sort: first seen</option></select>
+    </div>
+    <div class="twrap"><table><thead><tr><th>IP</th><th>Name</th><th>Category</th><th>Confidence</th><th>Ports</th><th>Status</th></tr></thead><tbody id="invBody"></tbody></table><div class="empty" id="invEmpty" style="display:none">No assets yet — run a scan or load demo data.</div></div>
+  </div>
+
+  <!-- REVIEW -->
+  <div id="viewRev" style="display:none">
+    <div class="twrap" id="revWrap"></div>
+  </div>
+
+  <!-- COVERAGE -->
+  <div id="viewCov" style="display:none">
+    <div class="cards" id="covCards"></div>
+    <div class="filters">
+      <select id="covFilter" onchange="loadCoverage()">
+        <option value="">All discovered assets</option>
+        <option value="not_qualys">Not in Qualys</option>
+        <option value="missing_edr">Missing Defender agent</option>
+      </select>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted-2);align-self:center" id="covHint"></span>
+    </div>
+    <div class="twrap"><table><thead><tr><th>IP</th><th>Name</th><th>Category</th><th>Qualys</th><th>Defender</th><th>Gap</th></tr></thead><tbody id="covBody"></tbody></table><div class="empty" id="covEmpty" style="display:none">Import a Qualys or Defender export to reconcile coverage.</div></div>
+    <div class="sec-t" style="margin-left:2px">Known to Qualys / Defender but not seen on the network</div>
+    <div class="twrap"><table><thead><tr><th>Source</th><th>Name</th><th>IP</th><th>OS</th><th>Last seen</th></tr></thead><tbody id="notSeenBody"></tbody></table><div class="empty" id="notSeenEmpty" style="display:none">Nothing — or no exports imported yet.</div></div>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CAT_COLOR = {
+  "Windows Endpoints":"var(--blue)","Mac Endpoints":"var(--cyan)","Endpoint/Server (Linux)":"var(--teal)",
+  "Servers / Hypervisors":"var(--purple)","Server":"var(--purple)","Server/Mgmt (BMC)":"var(--purple)",
+  "Printers / MFPs":"var(--amber)","Switches / Routers":"var(--green)","Firewalls":"var(--red)",
+  "Wireless AP":"var(--green)","Cameras / IoT":"var(--pink)","VoIP Devices":"var(--teal)",
+  "UPS / Power":"var(--amber)","Miscellaneous":"var(--gray)","Unknown":"var(--gray)","No response":"var(--gray)"
+};
+const color = c => CAT_COLOR[c] || "var(--gray)";
+let CATEGORIES = [];
+
+// ---- radar nodes (decorative) ----
+const radar=document.getElementById('radar'), nodes=[];
+(function(){const n=40,cx=150,cy=150;for(let i=0;i<n;i++){const a=i*137.5*Math.PI/180,r=22+Math.sqrt(i/n)*120;
+  const d=document.createElement('div');d.className='node';d.style.left=(cx+Math.cos(a)*r)+'px';d.style.top=(cy+Math.sin(a)*r)+'px';radar.appendChild(d);nodes.push(d);}})();
+
+// ---- file input ----
+let chosenFile=null;
+document.getElementById('fileInput').addEventListener('change',e=>{
+  chosenFile=e.target.files[0]||null;
+  document.getElementById('fileName').textContent=chosenFile?chosenFile.name:'no file';
+});
+
+// ---- scan ----
+let pollTimer=null;
+async function startScan(){
+  const fd=new FormData();
+  if(chosenFile) fd.append('file',chosenFile);
+  else { const t=prompt('Paste IPs or CIDRs (comma/space/newline separated):'); if(!t) return; fd.append('targets',t); }
+  fd.append('profile',document.getElementById('profile').value);
+  fd.append('rdns',document.getElementById('rdns').checked?'1':'0');
+  const btn=document.getElementById('scanBtn'); btn.disabled=true; document.getElementById('scanLabel').textContent='Scanning…';
+  document.getElementById('stopBtn').style.display='flex'; document.getElementById('stopBtn').disabled=false; document.getElementById('stopBtn').textContent='Stop';
+  document.getElementById('stage').classList.remove('hidden');
+  document.getElementById('sweep').style.display='block';
+  document.getElementById('sweepBadge').textContent='live';
+  document.getElementById('live').classList.add('on'); document.getElementById('clock').textContent='scanning';
+  document.getElementById('log').innerHTML='';
+  const res=await fetch('/api/scan',{method:'POST',body:fd});
+  if(!res.ok){ const e=await res.json(); alert(e.error||'scan error'); resetScanBtn(); return; }
+  pollTimer=setInterval(pollStatus,600);
+}
+async function stopScan(){
+  const b=document.getElementById('stopBtn'); b.disabled=true; b.textContent='Stopping…';
+  try{ await fetch('/api/scan/stop',{method:'POST'}); }catch(e){}
+}
+function resetScanBtn(){
+  const b=document.getElementById('scanBtn'); b.disabled=false; document.getElementById('scanLabel').textContent='Start scan';
+  document.getElementById('stopBtn').style.display='none';
+}
+async function pollStatus(){
+  const s=await (await fetch('/api/scan/status')).json();
+  document.getElementById('progText').textContent=`${s.done} / ${s.total}`;
+  document.getElementById('progPct').textContent=s.pct+'%';
+  document.getElementById('progBar').style.width=s.pct+'%';
+  document.getElementById('liveCount').textContent=s.recent.length?s.recent.length:s.done;
+  const log=document.getElementById('log');
+  log.innerHTML=s.recent.map(r=>`<div class="log-line"><span class="ip">${r.ip}</span><span class="arrow">→</span><span style="color:${color(r.category)}">${r.category}</span><span class="nm">${r.name||''}</span></div>`).join('')||'<div class="log-empty">scanning…</div>';
+  nodes.forEach((nd,i)=>nd.classList.toggle('lit', i < Math.round(s.pct/100*nodes.length)));
+  if(!s.running){
+    clearInterval(pollTimer); resetScanBtn();
+    document.getElementById('sweepBadge').textContent=s.stopped?'stopped':'complete';
+    document.getElementById('clock').textContent=s.stopped?'scan stopped':'scan complete';
+    document.getElementById('live').classList.remove('on');
+    refreshAll();
+  }
+}
+
+// ---- data loading ----
+async function refreshAll(){ await loadSummary(); await loadInventory(); await loadReview(); await loadDiff(); await loadCoverage(); }
+async function loadSummary(){
+  const s=await (await fetch('/api/summary')).json();
+  const cards=document.getElementById('cards'); const entries=Object.entries(s.counts).sort((a,b)=>b[1]-a[1]);
+  cards.innerHTML=entries.map(([c,n])=>`<div class="scard" style="--cc:${color(c)}" data-cat="${c}" onclick="filterCat('${c.replace(/'/g,"")}')"><div class="cn">${c}</div><div class="cc">${n}</div></div>`).join('')
+    || '<div class="empty" style="grid-column:1/-1">No assets yet.</div>';
+  document.getElementById('revCnt').textContent=s.review;
+  if(s.last_scan){document.getElementById('dWhen').textContent='scan #'+s.last_scan.id+' · '+s.last_scan.ts.replace('T',' ');}
+}
+async function loadDiff(){
+  const d=await (await fetch('/api/diff')).json();
+  if(!d.events.length){document.getElementById('diff').style.display='none';return;}
+  const c={new:0,missing:0};let chg=0;
+  d.events.forEach(e=>{if(e.type==='new')c.new++;else if(e.type==='missing')c.missing++;else if(e.type!=='reviewed')chg++;});
+  document.getElementById('dNew').textContent=c.new;document.getElementById('dMiss').textContent=c.missing;document.getElementById('dChg').textContent=chg;
+  document.getElementById('diff').style.display='flex';
+}
+let curCat='';
+function filterCat(c){ curCat=(curCat===c)?'':c; document.getElementById('fCategory').value=curCat; loadInventory(); }
+async function loadInventory(){
+  const p=new URLSearchParams({search:document.getElementById('search').value,category:document.getElementById('fCategory').value,
+    confidence:document.getElementById('fConfidence').value,status:document.getElementById('fStatus').value,sort:document.getElementById('fSort').value});
+  curCat=document.getElementById('fCategory').value;
+  const rows=await (await fetch('/api/inventory?'+p)).json();
+  document.getElementById('invCnt').textContent=rows.length;
+  document.querySelectorAll('.scard').forEach(el=>el.classList.toggle('sel',el.dataset.cat===curCat));
+  const b=document.getElementById('invBody');
+  document.getElementById('invEmpty').style.display=rows.length?'none':'block';
+  b.innerHTML=rows.map(a=>{
+    const cat=a.effective_category, ov=a.overridden?'<span class="ovr">manual</span>':'';
+    const st=a.status==='missing'?'<span class="st-missing">● missing</span>':'<span class="st-present">present</span>';
+    return `<tr onclick="openAsset('${encodeURIComponent(a.asset_key)}')">
+      <td class="td-ip">${a.current_ip||'—'}</td><td class="td-name">${a.name||'<span style="color:var(--muted-2)">unnamed</span>'}</td>
+      <td><span class="pill" style="--cc:${color(cat)}">${cat}</span>${ov}</td>
+      <td><span class="conf ${a.confidence}">${a.confidence}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${a.ports||'—'}</td><td>${st}</td></tr>`;
+  }).join('');
+}
+async function loadReview(){
+  const rows=await (await fetch('/api/review')).json();
+  document.getElementById('revCnt').textContent=rows.length;
+  const w=document.getElementById('revWrap');
+  if(!rows.length){w.innerHTML='<div class="empty">Nothing to review — every present asset is identified with confidence. 🎯</div>';return;}
+  w.innerHTML=rows.map(a=>`<div class="rev-item" onclick="openAsset('${encodeURIComponent(a.asset_key)}')">
+    <span class="rip">${a.current_ip}</span>
+    <span class="rev">${a.evidence||'no signature'}${a.ports?' · ports '+a.ports:''}</span>
+    <span class="go">review →</span></div>`).join('');
+}
+
+// ---- Qualys / Defender import + coverage ----
+let pendingSrc=null;
+function importSrc(src){ pendingSrc=src; document.getElementById('impFile').click(); }
+document.getElementById('impFile').addEventListener('change', async e=>{
+  const f=e.target.files[0]; if(!f||!pendingSrc) return;
+  const fd=new FormData(); fd.append('file',f);
+  const r=await fetch('/api/import/'+pendingSrc,{method:'POST',body:fd});
+  const j=await r.json(); e.target.value='';
+  if(!r.ok){ alert(j.error||'import failed'); return; }
+  toast(`Imported ${j.imported} ${pendingSrc} assets`);
+  const btn=document.getElementById(pendingSrc==='qualys'?'btnQualys':'btnDefender');
+  const cnt=document.getElementById(pendingSrc==='qualys'?'qCount':'dCount');
+  btn.classList.add('loaded'); cnt.style.display='inline'; cnt.textContent=j.imported;
+  loadCoverage();
+});
+
+async function loadCoverage(){
+  const filter=document.getElementById('covFilter').value;
+  const c=await (await fetch('/api/coverage?filter='+filter)).json();
+  const s=c.summary;
+  const cards=document.getElementById('covCards');
+  if(!s.has_qualys && !s.has_defender){
+    cards.innerHTML='<div class="empty" style="grid-column:1/-1">Import a Qualys or Defender export above to see coverage gaps.</div>';
+    document.getElementById('covCnt').textContent=0;
+    document.getElementById('covBody').innerHTML='';
+    document.getElementById('covEmpty').style.display='block';
+    document.getElementById('notSeenBody').innerHTML='';
+    document.getElementById('notSeenEmpty').style.display='block';
+    return;
+  }
+  const card=(lab,val,cc)=>`<div class="scard" style="--cc:${cc}"><div class="cn">${lab}</div><div class="cc">${val}</div></div>`;
+  cards.innerHTML =
+    card('On network',s.present,'var(--scan)')+
+    (s.has_qualys?card('Not in Qualys',s.not_qualys,'var(--amber)'):'')+
+    (s.has_defender?card('Missing Defender agent',s.missing_edr,'var(--red)'):'')+
+    card('Known but not seen',s.known_not_seen,'var(--gray)');
+  document.getElementById('covCnt').textContent = (s.has_qualys?s.not_qualys:0)+(s.has_defender?s.missing_edr:0);
+
+  const cb=document.getElementById('covBody');
+  document.getElementById('covEmpty').style.display=c.rows.length?'none':'block';
+  cb.innerHTML=c.rows.map(r=>{
+    const q = !s.has_qualys?'<span class="covbadge na">n/a</span>'
+      : r.in_qualys?'<span class="covbadge yes">✓ tracked</span>':'<span class="covbadge warn">✕ absent</span>';
+    let d;
+    if(!s.has_defender) d='<span class="covbadge na">n/a</span>';
+    else if(r.in_defender) d='<span class="covbadge yes">✓ onboarded</span>';
+    else if(r.agent_capable) d='<span class="covbadge warn">✕ no agent</span>';
+    else d='<span class="covbadge na">n/a</span>';
+    const gaps=[];
+    if(s.has_qualys && !r.in_qualys) gaps.push('<span class="covbadge warn">unmanaged</span>');
+    if(r.missing_edr) gaps.push('<span class="covbadge warn">EDR gap</span>');
+    return `<tr onclick="openAsset('${encodeURIComponent(r.asset_key)}')">
+      <td class="td-ip">${r.ip}</td><td class="td-name">${r.name||'<span style="color:var(--muted-2)">unnamed</span>'}</td>
+      <td><span class="pill" style="--cc:${color(r.category)}">${r.category}</span></td>
+      <td>${q}</td><td>${d}</td><td>${gaps.join(' ')||'<span style="color:var(--muted-2)">—</span>'}</td></tr>`;
+  }).join('');
+
+  const ns=document.getElementById('notSeenBody');
+  document.getElementById('notSeenEmpty').style.display=c.not_seen.length?'none':'block';
+  ns.innerHTML=c.not_seen.map(r=>`<tr><td><span class="covbadge ${r.source==='qualys'?'warn':'no'}" style="text-transform:capitalize">${r.source}</span></td>
+    <td class="td-name">${r.name||'—'}</td><td class="td-ip">${r.ip||'—'}</td>
+    <td style="color:var(--muted);font-size:12px">${r.os||'—'}</td><td style="font-family:var(--mono);font-size:11px;color:var(--muted-2)">${r.last||'—'}</td></tr>`).join('');
+}
+
+// ---- drawer / detail / override ----
+async function openAsset(ek){
+  const key=decodeURIComponent(ek);
+  const a=await (await fetch('/api/asset/'+encodeURIComponent(key))).json();
+  const cat=a.effective_category;
+  const opts=CATEGORIES.map(c=>`<option ${c===cat?'selected':''}>${c}</option>`).join('');
+  const evs=(a.events||[]).map(e=>`<div class="ev"><span class="ety ${e.type}">${e.type.replace('_',' ')}</span><span class="ed">${e.detail}</span><span class="et">${(e.ts||'').slice(5,16).replace('T',' ')}</span></div>`).join('')||'<div style="color:var(--muted-2);font-family:var(--mono);font-size:11px">no history yet</div>';
+  const ipsSeen=[...new Set((a.observations||[]).map(o=>o.ip))].join(', ');
+  const kq=a.known&&a.known.qualys, kd=a.known&&a.known.defender;
+  let kqMeta={},kdMeta={};
+  try{kqMeta=kq&&kq.meta?JSON.parse(kq.meta):{};}catch(e){}
+  try{kdMeta=kd&&kd.meta?JSON.parse(kd.meta):{};}catch(e){}
+  const covHtml=`
+    <div class="sec-t">Coverage (Qualys / Defender)</div>
+    <div class="kv">
+      <div class="k">Qualys</div><div class="v">${kq?`<span class="covbadge yes">✓ tracked</span> <span class="mono" style="color:var(--muted)">${kq.os||''} ${kqMeta.tracking?('· '+kqMeta.tracking):''}</span>`:'<span class="covbadge warn">✕ not in Qualys</span>'}</div>
+      <div class="k">Defender</div><div class="v">${kd?`<span class="covbadge yes">✓ ${kdMeta.onboarding||'onboarded'}</span> <span class="mono" style="color:var(--muted)">${kdMeta.health||''}</span>`:'<span class="covbadge warn">✕ no Defender agent</span>'}</div>
+    </div>`;
+  document.getElementById('drawer').innerHTML=`
+    <div class="dh"><div><div class="dip">${a.current_ip||'—'}</div><div class="dname">${a.name||'Unidentified host'}</div></div>
+      <button class="x" onclick="closeDrawer()">✕</button></div>
+    <div class="dsub">${a.overridden?'manually classified':'auto-classified'} · ${a.status} · confidence ${a.confidence}</div>
+    ${covHtml}
+    <div class="sec-t">Classify / correct</div>
+    <div class="form">
+      <label>Device type / category</label><select id="ovCat">${opts}</select>
+      <label>Vendor / model (optional)</label><input id="ovVendor" value="${a.override_vendor||''}" placeholder="e.g. APC Smart-UPS 1500">
+      <label>Notes (optional)</label><textarea id="ovNotes" placeholder="what is this, where is it, who owns it…">${a.override_notes||''}</textarea>
+      <button class="save" onclick="saveOverride('${encodeURIComponent(key)}')">Save classification</button>
+    </div>
+
+    <div class="sec-t">Signals</div>
+    <div class="kv">
+      <div class="k">PTR</div><div class="v mono">${a.ptr||'—'}</div>
+      <div class="k">NetBIOS</div><div class="v mono">${a.netbios||'—'}</div>
+      <div class="k">TLS CN</div><div class="v mono">${a.tls_cn||'—'}</div>
+      <div class="k">HTTP title</div><div class="v mono">${a.http_title||'—'}</div>
+      <div class="k">SNMP</div><div class="v mono">${a.snmp_descr||'—'}</div>
+      <div class="k">MAC / OUI</div><div class="v mono">${a.mac||'—'} ${a.oui_vendor?('('+a.oui_vendor+')'):''}</div>
+      <div class="k">Open ports</div><div class="v mono">${a.ports||'—'}</div>
+      <div class="k">Evidence</div><div class="v mono">${a.evidence||'—'}</div>
+      <div class="k">IPs seen</div><div class="v mono">${ipsSeen||a.current_ip||'—'}</div>
+      <div class="k">First seen</div><div class="v mono">${(a.first_seen||'').replace('T',' ')}</div>
+      <div class="k">Last seen</div><div class="v mono">${(a.last_seen||'').replace('T',' ')}</div>
+    </div>
+
+    <div class="sec-t">History</div><div class="evlist">${evs}</div>`;
+  document.getElementById('scrim').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+function closeDrawer(){document.getElementById('scrim').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
+async function saveOverride(ek){
+  const key=decodeURIComponent(ek);
+  const body={category:document.getElementById('ovCat').value,vendor:document.getElementById('ovVendor').value,notes:document.getElementById('ovNotes').value};
+  await fetch('/api/asset/'+encodeURIComponent(key)+'/override',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  closeDrawer(); toast('Saved — asset reclassified'); refreshAll();
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+
+// ---- tabs ----
+function showTab(t){
+  document.getElementById('tabInv').classList.toggle('active',t==='inv');
+  document.getElementById('tabRev').classList.toggle('active',t==='rev');
+  document.getElementById('tabCov').classList.toggle('active',t==='cov');
+  document.getElementById('viewInv').style.display=t==='inv'?'block':'none';
+  document.getElementById('viewRev').style.display=t==='rev'?'block':'none';
+  document.getElementById('viewCov').style.display=t==='cov'?'block':'none';
+  if(t==='rev') loadReview();
+  if(t==='cov') loadCoverage();
+}
+let dbTimer=null; function debouncedLoad(){clearTimeout(dbTimer);dbTimer=setTimeout(loadInventory,220);}
+
+// ---- init ----
+(async function(){
+  CATEGORIES=await (await fetch('/api/categories')).json();
+  document.getElementById('fCategory').innerHTML='<option value="">All categories</option>'+CATEGORIES.map(c=>`<option>${c}</option>`).join('');
+  refreshAll();
+})();
+</script>
+</body>
+</html>

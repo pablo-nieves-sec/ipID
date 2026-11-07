@@ -1,0 +1,17 @@
+# runtime data
+*.db
+*.db-wal
+*.db-shm
+*.log
+ipID_report.html
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+# pyinstaller build output
+build/
+dist/
+*.spec
+# os
+.DS_Store
